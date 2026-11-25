@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#101820">
+<title>Bangladesh City Life</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;color:#fff;font-family:system-ui,sans-serif;touch-action:none}
+canvas{display:block;width:100vw;height:100vh;background:#24332d}
+#hud{position:fixed;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
+.pill{background:#071018d9;border:1px solid #ffffff30;border-radius:12px;padding:8px 11px;font-size:13px;box-shadow:0 4px 14px #0005}
+#mission{position:fixed;top:58px;left:10px;max-width:72vw;background:#071018dc;border-radius:10px;padding:8px 11px;font-size:12px}
+#controls{position:fixed;inset:auto 0 16px 0;display:flex;justify-content:space-between;align-items:end;padding:0 18px;pointer-events:none}
+.pad{display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(2,48px);gap:5px;pointer-events:auto}
+button{border:1px solid #ffffff55;background:#071018cc;color:white;border-radius:13px;font-size:19px;font-weight:700;touch-action:none;user-select:none}
+.pad button{width:52px;height:48px}
+#gas{width:68px;height:68px;border-radius:50%;background:#147d55dd;font-size:13px;pointer-events:auto}
+#action{position:fixed;right:22px;bottom:98px;width:70px;height:48px;font-size:12px;background:#a65a13ed}
+#hint{position:fixed;bottom:5px;left:0;right:0;text-align:center;color:#d6e1d8;font-size:10px;pointer-events:none}
+@media(min-width:800px){.pad{transform:scale(1.15);transform-origin:bottom left}#controls{padding:0 35px 18px}}
+
+#mainMenu{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#071a16ee,#10251ddd),radial-gradient(circle at 70% 25%,#287c91,transparent 45%);padding:22px}
+.menuCard{width:min(440px,94vw);text-align:center;background:#071018d9;border:1px solid #ffffff35;border-radius:24px;padding:25px 20px;box-shadow:0 18px 60px #0009}
+.menuFlag{font-size:40px}.menuTitle{font-size:clamp(27px,7vw,42px);font-weight:1000;line-height:1.02;letter-spacing:1px;text-shadow:0 4px 0 #0008}.menuTitle span{color:#ffd52a}.menuSub{color:#d4e6dc;margin:10px 0 20px;font-size:13px}
+#startBtn{width:100%;height:52px;background:#ffd52a;color:#172018;font-size:18px;border:0;border-radius:14px;margin-bottom:10px}
+.menuNote{font-size:11px;color:#c6d4cb;line-height:1.5}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="mainMenu"><div class="menuCard"><div class="menuFlag">🇧🇩</div><div class="menuTitle">BANGLADESH<br><span>CITY LIFE</span></div><div class="menuSub">বাংলাদেশি শহরে ঘুরে বেড়াও · গাড়ি চালাও · মিশন শেষ করো</div><button id="startBtn">▶ গেম শুরু করো</button><div class="menuNote">অফলাইন প্রোটোটাইপ · Touch Control<br>এটি প্রাথমিক 2D সংস্করণ, পূর্ণ 3D গেম নয়</div></div></div>
+<div id="hud"><div class="pill">🇧🇩 <b>BANGLADESH CITY LIFE</b></div><div class="pill" id="stats">৳ 0 · পায়ে হাঁটা</div></div>
+<div id="mission">মিশন: হলুদ মার্কারে যাও এবং গাড়িতে ওঠো।</div>
+<div id="controls">
+ <div class="pad">
+  <span></span><button data-key="up">▲</button><span></span>
+  <button data-key="left">◀</button><button data-key="down">▼</button><button data-key="right">▶</button>
+ </div>
+ <button id="gas">চালাও<br>🚗</button>
+</div>
+<button id="action">অ্যাকশন</button>
+<div id="hint">তীর চিহ্ন দিয়ে চলাফেরা · গাড়ির পাশে অ্যাকশন চাপলে ওঠা/নামা · পুরো গেম অফলাইনে চলে</div>
+<script>
+(()=>{
+const c=document.getElementById('game'),ctx=c.getContext('2d'),stats=document.getElementById('stats'),mission=document.getElementById('mission');
+let W,H,dpr,keys={},money=0,inCar=false,missionDone=false,started=false;
+const world={w:1900,h:1450};
+const player={x:260,y:260,a:0,speed:0};
+const car={x:340,y:260,a:0,speed:0};
+const marker={x:1510,y:1040};
+const buildings=[];
+for(let y=100;y<world.h-100;y+=220)for(let x=100;x<world.w-100;x+=260){
+ if(Math.abs(x-340)<180&&Math.abs(y-260)<170)continue;
+ buildings.push({x:x+Math.random()*35,y:y+Math.random()*35,w:105+Math.random()*65,h:95+Math.random()*55,color:['#b67b50','#c8b48b','#7e9992','#a7a09a'][Math.floor(Math.random()*4)]});
+}
+const roads=[];
+for(let y=0;y<world.h;y+=220)roads.push({x:0,y:y+80,w:world.w,h:78});
+for(let x=0;x<world.w;x+=260)roads.push({x:x+75,y:0,w:78,h:world.h});
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+function down(k){keys[k]=true}function up(k){keys[k]=false}
+document.querySelectorAll('[data-key]').forEach(b=>{
+ const k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();down(k)});
+ ['pointerup','pointercancel','pointerleave'].forEach(ev=>b.addEventListener(ev,e=>{e.preventDefault();up(k)}));
+});
+addEventListener('keydown',e=>{let m={ArrowUp:'up',w:'up',ArrowDown:'down',s:'down',ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right'};if(m[e.key])down(m[e.key]);if(e.key===' '||e.key==='Enter')action()});
+addEventListener('keyup',e=>{let m={ArrowUp:'up',w:'up',ArrowDown:'down',s:'down',ArrowLeft:'left',a:'left',ArrowRight:'right',d:'right'};if(m[e.key])up(m[e.key])});
+document.getElementById('startBtn').addEventListener('click',()=>{started=true;document.getElementById('mainMenu').style.display='none';});
+document.getElementById('action').addEventListener('pointerdown',e=>{e.preventDefault();action()});
+document.getElementById('gas').addEventListener('pointerdown',e=>{e.preventDefault();down('gas')});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>document.getElementById('gas').addEventListener(ev,()=>up('gas')));
+function action(){
+ const p=inCar?car:player;
+ if(!inCar&&Math.hypot(player.x-car.x,player.y-car.y)<85){inCar=true;mission.textContent='মিশন: শহরের পূর্ব পাশে হলুদ মার্কারে গাড়ি নিয়ে যাও।'}
+ else if(inCar){inCar=false;player.x=car.x+35;player.y=car.y+10;player.a=car.a}
+}
+function blocked(x,y){
+ if(x<20||y<20||x>world.w-20||y>world.h-20)return true;
+ return buildings.some(b=>x>b.x-15&&x<b.x+b.w+15&&y>b.y-15&&y<b.y+b.h+15);
+}
+function update(){
+ if(!started)return;
+ let p=inCar?car:player;
+ if(inCar){
+  if(keys.up||keys.gas)car.speed=Math.min(car.speed+.13,5.4);
+  else if(keys.down)car.speed=Math.max(car.speed-.16,-2.5);
+  else car.speed*=.96;
+  if(keys.left)car.a-=.045*(Math.abs(car.speed)/3+.25);
+  if(keys.right)car.a+=.045*(Math.abs(car.speed)/3+.25);
+  let nx=car.x+Math.cos(car.a)*car.speed,ny=car.y+Math.sin(car.a)*car.speed;
+  if(!blocked(nx,ny)){car.x=nx;car.y=ny}else car.speed*=-.25;
+ }else{
+  let dx=(keys.right?1:0)-(keys.left?1:0),dy=(keys.down?1:0)-(keys.up?1:0);
+  if(dx||dy){let a=Math.atan2(dy,dx);player.a=a;let nx=player.x+Math.cos(a)*2.8,ny=player.y+Math.sin(a)*2.8;if(!blocked(nx,ny)){player.x=nx;player.y=ny}}
+ }
+ if(!missionDone&&Math.hypot(car.x-marker.x,car.y-marker.y)<85){missionDone=true;money+=500;mission.textContent='মিশন সম্পন্ন! +৳৫০০ পেয়েছ। শহর ঘুরে দেখো!'}
+ stats.textContent='৳ '+money+' · '+(inCar?'গাড়ি চালাচ্ছ':'পায়ে হাঁটা');
+}
+function draw(){
+ const p=inCar?car:player,camX=p.x-W/2,camY=p.y-H/2;
+ ctx.clearRect(0,0,W,H);ctx.save();ctx.translate(-camX,-camY);
+ ctx.fillStyle='#42634b';ctx.fillRect(0,0,world.w,world.h);
+ // road grid
+ ctx.fillStyle='#555b5d';roads.forEach(r=>ctx.fillRect(r.x,r.y,r.w,r.h));
+ ctx.strokeStyle='#d9c77a';ctx.lineWidth=3;ctx.setLineDash([22,20]);
+ roads.forEach(r=>{if(r.w>r.h){ctx.beginPath();ctx.moveTo(r.x,r.y+r.h/2);ctx.lineTo(r.x+r.w,r.y+r.h/2);ctx.stroke()}else{ctx.beginPath();ctx.moveTo(r.x+r.w/2,r.y);ctx.lineTo(r.x+r.w/2,r.y+r.h);ctx.stroke()}});
+ ctx.setLineDash([]);
+ // buildings and labels
+ buildings.forEach((b,i)=>{ctx.fillStyle='#0004';ctx.fillRect(b.x+7,b.y+9,b.w,b.h);ctx.fillStyle=b.color;ctx.fillRect(b.x,b.y,b.w,b.h);ctx.fillStyle='#e8dfc7';for(let xx=b.x+12;xx<b.x+b.w-8;xx+=24)for(let yy=b.y+14;yy<b.y+b.h-8;yy+=25)ctx.fillRect(xx,yy,9,11);ctx.fillStyle='#24302c';ctx.fillRect(b.x,b.y+b.h-18,b.w,18);});
+ // water and local landmarks
+ ctx.fillStyle='#287c91';ctx.fillRect(0,world.h-55,world.w,55);
+ ctx.fillStyle='#fff';ctx.font='bold 19px system-ui';ctx.fillText('DHAKA CITY',510,58);ctx.fillText('LOCAL BAZAR',1080,500);ctx.fillText('RIVER GHAT',120,1320);
+ // mission marker
+ if(!missionDone){ctx.fillStyle='#ffd52a';ctx.beginPath();ctx.arc(marker.x,marker.y,25+Math.sin(Date.now()/180)*5,0,Math.PI*2);ctx.fill();ctx.fillStyle='#17202a';ctx.font='bold 14px system-ui';ctx.fillText('৳',marker.x-5,marker.y+5)}
+ // car
+ ctx.save();ctx.translate(car.x,car.y);ctx.rotate(car.a);ctx.fillStyle='#111';ctx.fillRect(-23,-14,48,28);ctx.fillStyle='#d94437';ctx.fillRect(-20,-11,40,22);ctx.fillStyle='#bfe1e8';ctx.fillRect(-7,-9,15,18);ctx.fillStyle='#fff3b0';ctx.fillRect(17,-8,4,6);ctx.fillRect(17,3,4,6);ctx.restore();
+ if(!inCar){ctx.save();ctx.translate(player.x,player.y);ctx.fillStyle='#19232b';ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#f1c7a0';ctx.beginPath();ctx.arc(0,-5,6,0,Math.PI*2);ctx.fill();ctx.restore()}
+ ctx.restore();
+ // mini map
+ const mw=105,mh=82,mx=W-mw-12,my=H-105;ctx.fillStyle='#071018cc';ctx.fillRect(mx,my,mw,mh);ctx.strokeStyle='#fff8';ctx.strokeRect(mx,my,mw,mh);
+ ctx.fillStyle='#d94';ctx.fillRect(mx+car.x/world.w*mw-2,my+car.y/world.h*mh-2,5,5);
+ if(!missionDone){ctx.fillStyle='#ffdf32';ctx.beginPath();ctx.arc(mx+marker.x/world.w*mw,my+marker.y/world.h*mh,3,0,7);ctx.fill()}
+}
+function loop(){update();draw();requestAnimationFrame(loop)}loop();
+})();
+</script>
+</body></html>

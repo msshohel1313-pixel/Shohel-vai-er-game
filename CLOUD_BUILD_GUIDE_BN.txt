@@ -1,0 +1,22 @@
+ফোন দিয়ে Cloud Build করার নির্দেশনা
+=====================================
+
+এই project-এ GitHub Actions workflow যোগ করা হয়েছে। এটি GitHub-এর cloud runner-এ Android build চালাবে।
+
+ধাপ:
+1. GitHub-এ একটি account তৈরি/লগইন করো (নিজের বয়স/অ্যাকাউন্টের নিয়ম মেনে)।
+2. New repository তৈরি করো, নাম: BangladeshCityLife
+3. ZIP extract করে project-এর সব ফাইল ও .github ফোল্ডারসহ repository-তে upload করো।
+   গুরুত্বপূর্ণ: .github/workflows/android-build.yml ফাইলটি অবশ্যই upload হতে হবে।
+4. সব ফাইল main branch-এ commit/push করো।
+5. Repository-এর Actions tab খোলো। "Build Android app" workflow চলবে।
+6. Workflow সফল হলে run-এর নিচে Artifacts থেকে bangladesh-city-life-build ZIP download করো।
+7. ZIP extract করলে debug APK এবং release AAB পাওয়া যাবে।
+
+খুব গুরুত্বপূর্ণ:
+- APK হলো নিজের Android ফোনে test করার জন্য।
+- এই workflow-এর release AAB এখনো Play Store-এ upload করার মতো signed release নয়।
+- Play Store প্রকাশের আগে নিজের release keystore দিয়ে AAB sign করতে হবে এবং keystore/password GitHub Secrets-এ নিরাপদে রাখতে হবে। Password কখনো chat বা public repository-তে দেবে না।
+- Google Play developer account ও প্রকাশনা একজন যোগ্য প্রাপ্তবয়স্ক অভিভাবক/অ্যাকাউন্টধারীকে নিজের দায়িত্বে করতে হবে, যদি তুমি ১৮ বছরের কম হও।
+- Google Play-এর বর্তমান target API, testing, privacy/data safety ও store listing শর্ত প্রকাশের আগে যাচাই করতে হবে।
+- এই starter project এখনো 2D prototype-ই; 3D open-world game নয়।
