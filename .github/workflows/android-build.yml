@@ -19,10 +19,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: |
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses --sdk_root=$ANDROID_HOME || true
 
-      - name: Setup Gradle & Build APK
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build with Gradle
